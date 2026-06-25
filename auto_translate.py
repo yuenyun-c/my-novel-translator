@@ -59,7 +59,7 @@ def scrape_novel_chapter(url):
     user_data_dir = "./browser_data"
     
     with sync_playwright() as p:
-        browser = p.chromium.launch_persistent_context(user_data_dir=user_data_dir, headless=False)
+        browser = p.chromium.launch_persistent_context(user_data_dir=user_data_dir, headless=True)
         page = browser.pages[0] if browser.pages else browser.new_page()
         try:
             page.goto(url, timeout=60000)
