@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ novel.title }} - สารบัญ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { background-color: #121212; color: #e0e0e0; font-family: 'Tahoma', sans-serif; }</style>
+</head>
+<body class="p-6 md:p-10">
+    <div class="max-w-4xl mx-auto">
+        <a href="/" class="text-gray-400 hover:text-white mb-6 inline-block">⬅️ กลับหน้าคลังนิยาย</a>
+        
+        <div class="bg-gray-800 p-8 rounded-lg shadow-lg border border-gray-700 mb-8">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
+                <div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h1 id="novelTitleText" class="text-3xl font-bold text-blue-400">{{ novel.title }}</h1>
+                        <button onclick="editNovelTitle()" class="text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 px-2.5 py-1 rounded transition">✏️ แก้ไขชื่อเรื่อง</button>
+                    </div>
+                    <p class="text-sm text-gray-400 mt-2 truncate">ลิงก์ต้นฉบับ: {{ novel.original_url }}</p>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex flex-wrap gap-4 border-t border-gray-700 pt-4">
+                <button onclick="translateNextChapter()" id="nextBtn" class="bg-green-600 hover:bg-green-500 px-6 py-2 rounded font-bold transition">➕ แปลตอนต่อไป</button>
+                <a href="/glossary/{{ novel.id }}" class="bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded font-bold transition inline-block">📝 จัดการคำศัพท์ (Glossary)</a>
+            </div>
+
+            <div class="mt-6 bg-gray-900 p-4 rounded border border-gray-700">
+                <label class="block text-sm text-yellow-400 mb-2 font-medium">✨ ข้ามไปแปลตอนที่ต้องการ (เช่น ข้ามไปตอนที่ 10, ตอนที่ 400):</label>
+                <div class="flex gap-2">
+                    <input type="text" id="jumpUrl" placeholder="วางลิงก์ตอนที่ต้องการข้ามไปอ่านตรงนี้..." class="w-full p-2 rounded bg-gray-800 text-white text-sm outline-none border border-gray-600 focus:border-blue-500">
+                    <button onclick="jumpToChapter()" id="jumpBtn" class="bg-yellow-600 hover:bg-yellow-500 px-4 py-2 rounded text-sm font-bold text-black whitespace-nowrap transition">ดึงตอนข้าม</button>
+                </div>
+            </div>
+            <p id="loadingText" class="text-yellow-400 mt-3 text-sm hidden">⏳ ระบบกำลังทำงาน... AI กำลังวิเคราะห์และแปลภาษา (อาจใช้เวลา 1-2 นาทีนะครับ)</p>
+        </div>
+
+        <h2 class="text-2xl font-bold mb-4 border-b border-gray-700 pb-2">📑 สารบัญตอน</h2>
+        <div class="grid grid-cols-1 gap-3">
+            {% for chapter in chapters %}
+            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 transition flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                
+                <div class="flex-1 overflow-hidden w-full">
+                    <a href="/read/{{ chapter.id }}" class="font-medium text-gray-200 hover:text-blue-300 transition truncate block">
+                        <span class="font-bold text-blue-300 mr-2 bg-blue-900/30 px-2 py-0.5 rounded text-sm">ตอนที่ {{ chapter.chapter_number }}</span> 
+                        <span id="chapterTitleText_{{ chapter.id }}">{{ chapter.title if chapter.title else "ตอนที่ไม่มีชื่อ" }}</span>
+                    </a>
+                </div>
+                
+                <div class="flex gap-2 shrink-0 mt-2 md:mt-0">
+                    <button onclick="editChapterTitle('{{ chapter.id }}')" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs px-3 py-1.5 rounded transition whitespace-nowrap">✏️ แก้ชื่อ</button>
+                    <button onclick="retranslate('{{ chapter.id }}', '{{ chapter.chapter_number }}')" class="bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600 hover:text-white text-xs px-3 py-1.5 rounded transition whitespace-nowrap">🔄 แปลใหม่</button>
+                    <button onclick="deleteChapter('{{ chapter.id }}', '{{ chapter.chapter_number }}')" class="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white text-xs px-3 py-1.5 rounded transition whitespace-nowrap">🗑️ ลบ</button>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-6 text-gray-500 bg-gray-800 rounded-lg border border-gray-700">ยังไม่มีตอนที่แปลในระบบ</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // 1. ฟังก์ชันแก้ไขชื่อเรื่องนิยาย (แก้บั๊ก .trim() แล้ว)
+        async function editNovelTitle() {
+            const currentTitle = document.getElementById('novelTitleText').innerText;
+            const newTitle = prompt("กรอกชื่อเรื่องนิยายใหม่ที่คุณต้องการ:", currentTitle);
+            if (newTitle && newTitle.trim() !== "" && newTitle !== currentTitle) {
+                try {
+                    const res = await fetch('/edit_novel_title/{{ novel.id }}', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ title: newTitle.trim() })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') window.location.reload();
+                    else alert(data.message);
+                } catch (e) { alert("เกิดข้อผิดพลาดในการเชื่อมต่อ"); }
+            }
+        }
+
+        // 2. ฟังก์ชันแก้ไขชื่อตอนย่อย
+        async function editChapterTitle(chapterId) {
+            const currentTitle = document.getElementById('chapterTitleText_' + chapterId).innerText;
+            const newTitle = prompt("กรอกชื่อตอนใหม่:", currentTitle);
+            if (newTitle && newTitle.trim() !== "" && newTitle !== currentTitle) {
+                try {
+                    const res = await fetch(`/edit_chapter_title/${chapterId}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ title: newTitle.trim() })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') window.location.reload();
+                    else alert(data.message);
+                } catch (e) { alert("เกิดข้อผิดพลาดในการเชื่อมต่อ"); }
+            }
+        }
+
+        // 3. ฟังก์ชันลบตอนย่อย
+        async function deleteChapter(chapterId, chapterNum) {
+            if(!confirm(`⚠️ แน่ใจหรือไม่ว่าต้องการลบ "ตอนที่ ${chapterNum}"?\n(ลบแล้วกู้คืนไม่ได้นะครับ)`)) return;
+            try {
+                const res = await fetch(`/delete_chapter/${chapterId}`, { method: 'POST' });
+                const data = await res.json();
+                if(data.status === 'success') window.location.reload();
+                else alert("ข้อผิดพลาด: " + data.message);
+            } catch (e) { alert("เกิดข้อผิดพลาดในการเชื่อมต่อ"); }
+        }
+
+        // 4. ฟังก์ชันส่งลิงก์เพื่อกระโดดข้ามตอน
+        async function jumpToChapter() {
+            const url = document.getElementById('jumpUrl').value;
+            if(!url) return alert("กรุณาใส่ลิงก์ตอนที่ต้องการข้ามไปก่อนครับ!");
+            
+            document.getElementById('jumpBtn').disabled = true;
+            document.getElementById('loadingText').classList.remove('hidden');
+
+            try {
+                const res = await fetch('/jump_chapter/{{ novel.id }}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ url: url })
+                });
+                const data = await res.json();
+                if(data.status === 'success') window.location.reload();
+                else alert("ข้อผิดพลาด: " + data.message);
+            } catch (e) { alert("เกิดข้อผิดพลาดในการเชื่อมต่อ"); }
+            
+            document.getElementById('jumpBtn').disabled = false;
+            document.getElementById('loadingText').classList.add('hidden');
+        }
+
+        // 5. ฟังก์ชันแปลตอนต่อไปตามปกติ
+        async function translateNextChapter() {
+            document.getElementById('nextBtn').disabled = true;
+            document.getElementById('loadingText').classList.remove('hidden');
+            try {
+                const response = await fetch('/translate_next/{{ novel.id }}', { method: 'POST' });
+                const data = await response.json();
+                if(data.status === "success") window.location.reload();
+                else alert("ข้อผิดพลาด: " + data.message);
+            } catch (error) { alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        }
+
+        // 6. ฟังก์ชันแปลตอนเดิมซ้ำ
+        async function retranslate(id, num) {
+            if(!confirm(`ต้องการสั่ง AI ให้แปลตอนที่ ${num} ใหม่อีกรอบใช่ไหม?`)) return;
+            document.getElementById('loadingText').classList.remove('hidden');
+            try {
+                const response = await fetch(`/retranslate/${id}`, { method: 'POST' });
+                const data = await response.json();
+                if(data.status === "success") window.location.reload();
+                else alert(data.message);
+            } catch (error) { alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+            document.getElementById('loadingText').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

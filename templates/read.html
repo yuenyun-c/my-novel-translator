@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตอนที่ {{ chapter.chapter_number }} - {{ novel.title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; }
+        .novel-text { font-family: 'Sarabun', Tahoma, sans-serif; font-size: 1.25rem; line-height: 1.9; color: #d1d5db; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body class="p-4 md:p-10">
+    <div class="max-w-3xl mx-auto">
+        
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-8 border-b border-gray-700 pb-4 gap-4">
+            <div class="flex items-center gap-3">
+                <a href="/novel/{{ novel.id }}" class="text-gray-400 hover:text-white text-sm transition">⬅️ สารบัญ</a>
+                <button onclick="toggleEditMode()" id="editBtn" class="text-xs bg-blue-900/40 text-blue-400 border border-blue-800/60 px-2.5 py-1 rounded hover:bg-blue-600 hover:text-white transition">📝 แก้ไขเนื้อหา</button>
+                <button onclick="saveContent()" id="saveBtn" class="text-xs bg-green-600 text-white px-2.5 py-1 rounded hover:bg-green-500 transition hidden">💾 บันทึก</button>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded border border-gray-700 self-start md:self-auto shadow-sm">
+                <span class="text-xs text-gray-400 mr-1">ขนาดอักษร:</span>
+                <button onclick="changeFontSize(-0.1)" class="bg-gray-700 hover:bg-gray-600 px-2.5 py-0.5 rounded font-bold text-sm transition">- A</button>
+                <span id="fontSizeDisplay" class="text-sm font-bold text-blue-400 px-1 w-12 text-center">100%</span>
+                <button onclick="changeFontSize(0.1)" class="bg-gray-700 hover:bg-gray-600 px-2.5 py-0.5 rounded font-bold text-sm transition">+ A</button>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-8 bg-gray-800/30 p-2 rounded border border-gray-800 text-sm">
+            {% if prev_id %}
+            <a href="/read/{{ prev_id }}" class="text-blue-400 hover:underline">⬅️ ตอนก่อนหน้า</a>
+            {% else %}
+            <span class="text-gray-600">⬅️ ไม่มีตอนก่อนหน้า</span>
+            {% endif %}
+            
+            <a href="/novel/{{ novel.id }}" class="text-gray-400 hover:text-white">สารบัญ</a>
+
+            {% if next_id %}
+            <a href="/read/{{ next_id }}" class="text-blue-400 hover:underline">ตอนถัดไป ➡️</a>
+            {% else %}
+            <span class="text-gray-600">ตอนถัดไป ➡️</span>
+            {% endif %}
+        </div>
+
+        <h2 class="text-2xl font-bold text-blue-400 mb-2 text-center">ตอนที่ {{ chapter.chapter_number }}</h2>
+        <h3 class="text-xl text-gray-400 mb-8 text-center font-medium">{{ chapter.title if chapter.title else "ตอนที่ไม่มีชื่อ" }}</h3>
+
+        <div id="contentContainer" class="mb-12">
+            <div id="novelContent" class="novel-text whitespace-pre-wrap">{{ chapter.content }}</div>
+            <textarea id="editContentArea" class="w-full h-[60vh] bg-gray-900 text-gray-200 p-4 rounded border border-gray-700 outline-none focus:border-blue-500 novel-text hidden shadow-inner"></textarea>
+        </div>
+
+        <div class="flex justify-between items-center pt-6 border-t border-gray-700 text-sm mb-10">
+            {% if prev_id %}
+            <a href="/read/{{ prev_id }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded transition">⬅️ ตอนก่อนหน้า</a>
+            {% else %}
+            <span class="text-gray-600 bg-gray-900/50 px-4 py-2 rounded">⬅️ ตอนก่อนหน้า</span>
+            {% endif %}
+            
+            <a href="/novel/{{ novel.id }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded transition">📋 คลังตอน</a>
+
+            {% if next_id %}
+            <a href="/read/{{ next_id }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded transition">ตอนถัดไป ➡️</a>
+            {% else %}
+            <span class="text-gray-600 bg-gray-900/50 px-4 py-2 rounded">ตอนถัดไป ➡️</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        let currentSize = 1.25; 
+        let isEditMode = false;
+
+        // 1. ฟังก์ชันสลับโหมด อ่านปกติ / พิมพ์แก้ไขเอง
+        function toggleEditMode() {
+            const textDisplay = document.getElementById('novelContent');
+            const editArea = document.getElementById('editContentArea');
+            const editBtn = document.getElementById('editBtn');
+            const saveBtn = document.getElementById('saveBtn');
+
+            isEditMode = !isEditMode;
+
+            if (isEditMode) {
+                // ย้ายเนื้อหาจากตัวโชว์ ไปใส่ในกล่องข้อความพิมพ์แก้
+                editArea.value = textDisplay.innerText;
+                textDisplay.classList.add('hidden');
+                editArea.classList.remove('hidden');
+                
+                editBtn.innerText = "❌ ยกเลิก";
+                editBtn.classList.replace('bg-blue-900/40', 'bg-red-900/40');
+                editBtn.classList.replace('text-blue-400', 'text-red-400');
+                saveBtn.classList.remove('hidden');
+            } else {
+                textDisplay.classList.remove('hidden');
+                editArea.classList.add('hidden');
+                
+                editBtn.innerText = "📝 แก้ไขเนื้อหา";
+                editBtn.classList.replace('bg-red-900/40', 'bg-blue-900/40');
+                editBtn.classList.replace('text-red-400', 'text-blue-400');
+                saveBtn.classList.add('hidden');
+            }
+        }
+
+        // 2. ฟังก์ชันส่งข้อมูลเนื้อหาที่พิมพ์แก้ไปเซฟลงฐานข้อมูล
+        async function saveContent() {
+            const editArea = document.getElementById('editContentArea');
+            const updatedText = editArea.value;
+
+            if(!updatedText.trim()) return alert("เนื้อหาห้ามว่างครับ");
+
+            try {
+                const res = await fetch('/edit_chapter_content/{{ chapter.id }}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ content: updatedText })
+                });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    // อัปเดตข้อความหน้าเว็บ และปิดโหมดแก้ไข
+                    document.getElementById('novelContent').innerText = updatedText;
+                    toggleEditMode();
+                } else {
+                    alert(data.message);
+                }
+            } catch (e) { alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        }
+
+        // 3. ฟังก์ชันปรับขนาดอักษรตามเดิม
+        function changeFontSize(delta) {
+            currentSize += delta;
+            if(currentSize < 0.9) currentSize = 0.9;
+            if(currentSize > 2.5) currentSize = 2.5;
+            
+            document.getElementById('novelContent').style.fontSize = currentSize + 'rem';
+            document.getElementById('editContentArea').style.fontSize = currentSize + 'rem';
+            
+            let percent = Math.round((currentSize / 1.25) * 100);
+            document.getElementById('fontSizeDisplay').innerText = percent + '%';
+        }
+    </script>
+</body>
+</html>

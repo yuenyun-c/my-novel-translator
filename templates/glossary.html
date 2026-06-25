@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>คลังคำศัพท์ - {{ novel.title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { background-color: #121212; color: #e0e0e0; font-family: 'Tahoma', sans-serif; }</style>
+</head>
+<body class="p-6 md:p-10">
+    <div class="max-w-5xl mx-auto">
+        
+        <a href="/novel/{{ novel.id }}" class="text-gray-400 hover:text-white mb-6 inline-block">⬅️ กลับหน้าสารบัญ</a>
+        
+        <h1 class="text-3xl font-bold text-blue-400 mb-2">📝 จัดการคำศัพท์ (Glossary)</h1>
+        <p class="text-gray-400 mb-8">เรื่อง: {{ novel.title }}</p>
+
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 mb-8">
+            <h2 id="boxTitle" class="text-xl font-bold text-green-400 mb-4">➕ เพิ่มคำศัพท์บังคับ</h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <select id="wordCategory" class="p-3 rounded bg-gray-900 border border-gray-600 focus:border-blue-500 text-white outline-none w-full md:w-1/4">
+                    <option value="character">👤 ชื่อตัวละคร</option>
+                    <option value="title">🏛️ ตำแหน่ง/สถานที่</option>
+                    <option value="term">🔖 คำศัพท์ทั่วไป</option>
+                </select>
+                <input type="text" id="zhWord" placeholder="ภาษาจีน (เช่น 秦书剑)" class="flex-1 p-3 rounded bg-gray-900 border border-gray-600 focus:border-blue-500 text-white outline-none">
+                <input type="text" id="thWord" placeholder="คำแปลไทย (เช่น ฉินชูเจี้ยน)" class="flex-1 p-3 rounded bg-gray-900 border border-gray-600 focus:border-blue-500 text-white outline-none">
+                <button id="actionBtn" onclick="submitWord()" class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded font-bold transition">เพิ่มคำศัพท์</button>
+                <button id="cancelBtn" onclick="cancelEdit()" class="bg-gray-600 hover:bg-gray-500 px-4 py-3 rounded font-bold transition hidden">ยกเลิก</button>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg shadow-lg border border-gray-700 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-900 border-b border-gray-700">
+                        <th class="p-4 font-bold text-gray-300 w-1/4">หมวดหมู่</th>
+                        <th class="p-4 font-bold text-gray-300">ภาษาจีน</th>
+                        <th class="p-4 font-bold text-gray-300">คำแปลไทย</th>
+                        <th class="p-4 font-bold text-center text-gray-300 w-32">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for word in words %}
+                    <tr class="border-b border-gray-700 hover:bg-gray-750 transition">
+                        <td class="p-4 text-gray-400 text-sm">
+                            {% if word.category == 'character' %} 👤 ตัวละคร 
+                            {% elif word.category == 'title' %} 🏛️ ตำแหน่ง/สถานที่
+                            {% else %} 🔖 คำศัพท์ทั่วไป 
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-blue-300 font-medium">{{ word.chinese_word }}</td>
+                        <td class="p-4 text-green-300 font-medium">{{ word.thai_word }}</td>
+                        <td class="p-4 text-center whitespace-nowrap">
+                            <button onclick="prepareEdit('{{ word.id }}', '{{ word.category }}', '{{ word.chinese_word }}', '{{ word.thai_word }}')" class="bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600 hover:text-white px-3 py-1 rounded transition mr-1">แก้ไข</button>
+                            <button onclick="deleteWord('{{ word.id }}')" class="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1 rounded transition">ลบ</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="p-8 text-center text-gray-500">ยังไม่มีคำศัพท์ในคลังของเรื่องนี้</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let editingWordId = null;
+
+        // ฟังก์ชันเตรียมการแก้ไข (ดึงข้อมูลจากตารางไปไว้ในกล่อง)
+        function prepareEdit(id, cat, zh, th) {
+            document.getElementById('wordCategory').value = cat || 'term';
+            document.getElementById('zhWord').value = zh;
+            document.getElementById('thWord').value = th;
+            editingWordId = id;
+
+            // เปลี่ยนหน้าตาปุ่มเป็นโหมดแก้ไข
+            document.getElementById('boxTitle').innerText = "✏️ แก้ไขคำศัพท์";
+            document.getElementById('boxTitle').classList.replace('text-green-400', 'text-yellow-400');
+            
+            const btn = document.getElementById('actionBtn');
+            btn.innerText = "บันทึกการแก้ไข";
+            btn.classList.replace('bg-blue-600', 'bg-yellow-600');
+            btn.classList.replace('hover:bg-blue-500', 'hover:bg-yellow-500');
+            
+            document.getElementById('cancelBtn').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // เลื่อนหน้าจอขึ้นไปบนสุดแบบนุ่มนวล
+        }
+
+        // ฟังก์ชันยกเลิกการแก้ไข (กลับไปโหมดเพิ่มคำศัพท์เหมือนเดิม)
+        function cancelEdit() {
+            document.getElementById('zhWord').value = '';
+            document.getElementById('thWord').value = '';
+            editingWordId = null;
+
+            document.getElementById('boxTitle').innerText = "➕ เพิ่มคำศัพท์บังคับ";
+            document.getElementById('boxTitle').classList.replace('text-yellow-400', 'text-green-400');
+            
+            const btn = document.getElementById('actionBtn');
+            btn.innerText = "เพิ่มคำศัพท์";
+            btn.classList.replace('bg-yellow-600', 'bg-blue-600');
+            btn.classList.replace('hover:bg-yellow-500', 'hover:bg-blue-500');
+            
+            document.getElementById('cancelBtn').classList.add('hidden');
+        }
+
+        // ฟังก์ชันรวมร่าง (ใช้ทั้งเพิ่มและบันทึกข้อมูลแก้ไข)
+        async function submitWord() {
+            const cat = document.getElementById('wordCategory').value;
+            const zh = document.getElementById('zhWord').value;
+            const th = document.getElementById('thWord').value;
+            if(!zh || !th) return alert("กรุณากรอกคำศัพท์ให้ครบทั้ง 2 ช่องครับ");
+
+            try {
+                // เช็กว่ามี ID อยู่ไหม ถ้ามีแปลว่ากำลังแก้ไข ถ้าไม่มีแปลว่าเพิ่มใหม่
+                let url = editingWordId ? `/edit_word/${editingWordId}` : `/add_word/{{ novel.id }}`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ category: cat, chinese_word: zh, thai_word: th })
+                });
+                const data = await response.json();
+                if(data.status === "success") window.location.reload();
+            } catch (e) {
+                alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+            }
+        }
+
+        async function deleteWord(wordId) {
+            if(!confirm("แน่ใจหรือไม่ว่าต้องการลบคำศัพท์นี้?")) return;
+            try {
+                const response = await fetch(`/delete_word/${wordId}`, { method: 'POST' });
+                const data = await response.json();
+                if(data.status === "success") window.location.reload();
+            } catch (e) {
+                alert("เกิดข้อผิดพลาดในการลบ");
+            }
+        }
+    </script>
+</body>
+</html>

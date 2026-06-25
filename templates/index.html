@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Novel Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { background-color: #121212; color: #e0e0e0; font-family: 'Tahoma', sans-serif; }</style>
+</head>
+<body class="p-6 md:p-10">
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-4xl font-bold text-blue-400 mb-10 border-b border-gray-700 pb-4">📚 คลังนิยายส่วนตัว</h1>
+
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-10 border border-gray-700">
+            <h2 class="text-xl font-bold mb-4 text-green-400">➕ เพิ่มนิยายเรื่องใหม่</h2>
+            <div class="flex flex-col gap-4 mb-4">
+                <input type="text" id="novelTitle" placeholder="ชื่อเรื่องนิยาย" class="p-3 rounded bg-gray-900 border border-gray-600 focus:border-blue-500 text-white outline-none">
+                
+                <div class="flex gap-4 text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="inputType" value="link" checked onclick="toggleInput('link')"> 🌐 ใช้ลิงก์จากเว็บ</label>
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="inputType" value="text" onclick="toggleInput('text')"> 📝 วางข้อความภาษาจีนดิบ</label>
+                </div>
+
+                <input type="text" id="novelUrl" placeholder="ลิงก์ตอนแรก (เช่น 69shuba)" class="p-3 rounded bg-gray-900 border border-gray-600 focus:border-blue-500 text-white outline-none">
+                <textarea id="novelRawText" placeholder="วางข้อความภาษาจีนที่นี่..." class="p-3 rounded bg-gray-900 border border-gray-600 focus:border-blue-500 text-white outline-none h-40 hidden"></textarea>
+                
+                <button id="addBtn" onclick="addNewNovel()" class="bg-blue-600 hover:bg-blue-500 py-3 rounded font-bold transition shadow-lg w-full md:w-32">เพิ่มเรื่องนี้</button>
+            </div>
+            <p id="loadingStatus" class="text-yellow-400 mt-4 text-sm hidden">⏳ AI กำลังทำงาน (วิเคราะห์คำศัพท์และแปลภาษา)... โปรดรอ 1-2 นาทีนะครับ</p>
+        </div>
+
+        <h2 class="text-2xl font-bold mb-6">📖 เรื่องที่กำลังอ่าน</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {% for novel in novels %}
+            <div class="bg-gray-800 rounded-lg p-5 shadow-lg border border-gray-700 hover:border-blue-500 transition flex flex-col justify-between">
+                <a href="/novel/{{ novel.id }}" class="block mb-4">
+                    <h3 class="text-xl font-bold text-blue-300 mb-2 truncate">{{ novel.title }}</h3>
+                    <p class="text-sm text-gray-400 truncate">ที่มา: {{ novel.original_url }}</p>
+                </a>
+                <div class="flex justify-between items-center mt-auto border-t border-gray-700 pt-4">
+                    <button onclick="deleteNovel('{{ novel.id }}')" class="text-red-400 hover:text-red-300 text-sm bg-red-900/20 px-3 py-1 rounded transition">🗑️ ลบ</button>
+                    <a href="/novel/{{ novel.id }}" class="bg-blue-600/20 text-blue-400 px-3 py-1 rounded text-sm font-bold transition">เปิดสารบัญ ➡️</a>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-span-3 text-center py-10 bg-gray-800 rounded-lg border border-gray-700 text-gray-400">ยังไม่มีนิยายในคลังครับ ลองเพิ่มเรื่องใหม่ด้านบนดูสิ!</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // ฟังก์ชันสลับโหมดซ่อน/โชว์กล่องข้อความ
+        function toggleInput(type) {
+            if(type === 'link') {
+                document.getElementById('novelUrl').classList.remove('hidden');
+                document.getElementById('novelRawText').classList.add('hidden');
+            } else {
+                document.getElementById('novelUrl').classList.add('hidden');
+                document.getElementById('novelRawText').classList.remove('hidden');
+            }
+        }
+
+        async function addNewNovel() {
+            const title = document.getElementById('novelTitle').value;
+            const type = document.querySelector('input[name="inputType"]:checked').value;
+            const url = document.getElementById('novelUrl').value;
+            const rawText = document.getElementById('novelRawText').value;
+            
+            if(!title) return alert("กรุณาใส่ชื่อเรื่องด้วยครับ");
+
+            document.getElementById('addBtn').innerText = "กำลังแปล...";
+            document.getElementById('addBtn').disabled = true;
+            document.getElementById('loadingStatus').classList.remove('hidden');
+
+            try {
+                const response = await fetch('/add_novel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, url: type==='link'?url:'', raw_text: type==='text'?rawText:'' })
+                });
+                const data = await response.json();
+                if(data.status === "success") window.location.reload();
+                else alert("ข้อผิดพลาด: " + data.message);
+            } catch (e) { alert("เกิดข้อผิดพลาดในการเชื่อมต่อ"); }
+            
+            document.getElementById('addBtn').innerText = "เพิ่มเรื่องนี้";
+            document.getElementById('addBtn').disabled = false;
+            document.getElementById('loadingStatus').classList.add('hidden');
+        }
+
+        async function deleteNovel(id) {
+            if(confirm("⚠️ ต้องการลบเรื่องนี้หรือไม่? (ลบแล้วกู้คืนไม่ได้นะครับ)")) {
+                await fetch(`/delete_novel/${id}`, {method: 'POST'});
+                window.location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
